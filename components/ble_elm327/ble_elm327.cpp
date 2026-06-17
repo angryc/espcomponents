@@ -224,14 +224,34 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
                (unsigned) extra_init_commands_.size());
       break;
 
-    case ESP_GATTC_NOTIFY_EVT:
+    case ESP_GATTC_NOTIFY_EVT: {
       ESP_LOGI(TAG,
-               "NOTIFY is_notify=%d len=%u",
+               "NOTIFY is_notify=%d len=%u handle=%u",
                param->notify.is_notify,
-               param->notify.value_len);
-        if (param->notify.handle == rx_char_handle_)
-            on_notify(param->notify.value, param->notify.value_len);
-      break;  
+               param->notify.value_len,
+               param->notify.handle);
+    
+      std::string txt(
+          (char *) param->notify.value,
+          param->notify.value_len);
+    
+      ESP_LOGI(TAG, "RX TXT: '%s'", txt.c_str());
+    
+      std::string hex;
+      char buf[4];
+    
+      for (int i = 0; i < param->notify.value_len; i++) {
+        snprintf(buf, sizeof(buf), "%02X ", param->notify.value[i]);
+        hex += buf;
+      }
+    
+      ESP_LOGI(TAG, "RX HEX: %s", hex.c_str());
+    
+      if (param->notify.handle == rx_char_handle_)
+        on_notify(param->notify.value, param->notify.value_len);
+    
+      break;
+    } 
 
 
     case ESP_GATTC_WRITE_CHAR_EVT:
