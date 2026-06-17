@@ -252,6 +252,7 @@ bool BleElm327Component::send_command(const std::string &cmd) {
   ESP_LOGI(TAG, "SEND HEX:");
   for (auto c : cmd)
     ESP_LOGI(TAG, "%02X", (uint8_t)c);
+  ESP_LOGI(TAG, "TX handle=%u", chr->handle);
   chr->write_value(reinterpret_cast<uint8_t *>(const_cast<char *>(cmd.data())), cmd.size(),
                    ESP_GATT_WRITE_TYPE_NO_RSP);
   ESP_LOGD(TAG, ">> %s", cmd.c_str());
