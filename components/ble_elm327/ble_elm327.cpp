@@ -225,9 +225,14 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
       break;
 
     case ESP_GATTC_NOTIFY_EVT:
-      if (param->notify.handle == rx_char_handle_)
-        on_notify(param->notify.value, param->notify.value_len);
-      break;
+      ESP_LOGI(TAG,
+               "NOTIFY is_notify=%d len=%u",
+               param->notify.is_notify,
+               param->notify.value_len);
+        if (param->notify.handle == rx_char_handle_)
+            on_notify(param->notify.value, param->notify.value_len);
+      break;  
+
 
     case ESP_GATTC_WRITE_CHAR_EVT:
       ESP_LOGI(TAG, "WRITE OK");
