@@ -91,6 +91,11 @@ void BleElm327Component::add_init_command(const std::string &cmd) {
 // ── BleElm327Component ──────────────────────────────────────────────────────
 
 void BleElm327Component::loop() {
+  static bool once = false;
+  if (!once) {
+    ESP_LOGE(TAG, "BLE_ELM327 LOOP RUNNING");
+    once = true;
+  }
   if (elm_state_ == ElmState::IDLE) return;
 
   // Drain queued command (init or sensor) with tx_delay
