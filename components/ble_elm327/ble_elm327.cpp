@@ -223,6 +223,7 @@ bool BleElm327Component::send_command(const std::string &cmd) {
   chr->write_value(reinterpret_cast<uint8_t *>(const_cast<char *>(cmd.data())), cmd.size(),
                    ESP_GATT_WRITE_TYPE_NO_RSP);
   ESP_LOGD(TAG, ">> %s", cmd.c_str());
+  ESP_LOGI(TAG, "SEND: %s", cmd.c_str());
   return true;
 }
 
@@ -233,6 +234,7 @@ void BleElm327Component::on_notify(const uint8_t *data, uint16_t length) {
 
 void BleElm327Component::process_response(const std::string &response) {
   ESP_LOGD(TAG, "<< %s", response.c_str());
+  ESP_LOGI(TAG, "RECV: %s", response.c_str());
 
   if (elm_state_ != ElmState::READY) return;
 
