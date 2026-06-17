@@ -153,9 +153,6 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
                                               esp_ble_gattc_cb_param_t *param) {
   ESP_LOGE(TAG, "GATTC EVENT %d", event);
   switch (event) {
-    case ESP_GATTC_WRITE_CHAR_EVT:
-      ESP_LOGI(TAG, "WRITE OK");
-      break;
     case ESP_GATTC_OPEN_EVT:
       if (param->open.status != ESP_GATT_OK) {
         ESP_LOGW(TAG, "Connection failed, status=%d", param->open.status);
@@ -233,6 +230,7 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
       break;
 
     case ESP_GATTC_WRITE_CHAR_EVT:
+      ESP_LOGI(TAG, "WRITE OK");
       if (param->write.status != ESP_GATT_OK)
         ESP_LOGW(TAG, "Write failed, status=%d", param->write.status);
       break;
