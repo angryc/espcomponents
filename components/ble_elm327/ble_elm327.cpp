@@ -153,6 +153,9 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
                                               esp_ble_gattc_cb_param_t *param) {
   ESP_LOGE(TAG, "GATTC EVENT %d", event);
   switch (event) {
+    case ESP_GATTC_WRITE_CHAR_EVT:
+      ESP_LOGI(TAG, "WRITE OK");
+      break;
     case ESP_GATTC_OPEN_EVT:
       if (param->open.status != ESP_GATT_OK) {
         ESP_LOGW(TAG, "Connection failed, status=%d", param->open.status);
@@ -243,6 +246,9 @@ bool BleElm327Component::send_command(const std::string &cmd) {
   if (client_state_ != espbt::ClientState::ESTABLISHED || tx_char_handle_ == 0) return false;
   auto *chr = this->parent_->get_characteristic(service_uuid_, tx_char_uuid_);
   if (chr == nullptr) { ESP_LOGW(TAG, "TX characteristic missing"); return false; }
+  ESP_LOGI(TAG, "SEND HEX:");
+  for (auto c : cmd)
+    ESP_LOGI(TAG, "%02X", (uint8_t)c);
   chr->write_value(reinterpret_cast<uint8_t *>(const_cast<char *>(cmd.data())), cmd.size(),
                    ESP_GATT_WRITE_TYPE_NO_RSP);
   ESP_LOGD(TAG, ">> %s", cmd.c_str());
