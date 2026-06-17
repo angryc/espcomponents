@@ -46,11 +46,20 @@ bool BleElm327Device::on_receive(const std::vector<uint8_t> &bytes) {
 
 float BleElm327Device::parse_float(const std::vector<uint8_t> &data) {
   if (formula_.has_value()) {
-    uint8_t a = data.size() > 0 ? data[0] : 0;
-    uint8_t b = data.size() > 1 ? data[1] : 0;
-    uint8_t c = data.size() > 2 ? data[2] : 0;
-    uint8_t d = data.size() > 3 ? data[3] : 0;
-    return (*formula_)(a, b, c, d);
+    uint8_t a = data.size() > 0  ? data[0]  : 0;
+    uint8_t b = data.size() > 1  ? data[1]  : 0;
+    uint8_t c = data.size() > 2  ? data[2]  : 0;
+    uint8_t d = data.size() > 3  ? data[3]  : 0;
+    uint8_t e = data.size() > 4  ? data[4]  : 0;
+    uint8_t f = data.size() > 5  ? data[5]  : 0;
+    uint8_t g = data.size() > 6  ? data[6]  : 0;
+    uint8_t h = data.size() > 7  ? data[7]  : 0;
+    uint8_t i = data.size() > 8  ? data[8]  : 0;
+    uint8_t j = data.size() > 9  ? data[9]  : 0;
+    uint8_t k = data.size() > 10 ? data[10] : 0;
+    uint8_t l = data.size() > 11 ? data[11] : 0;
+    
+    return (*formula_)(a,b,c,d,e,f,g,h,i,j,k,l);
   }
   float val = 0;
   for (size_t i = 0; i < data.size(); i++) val = val * 256.0f + data[i];
