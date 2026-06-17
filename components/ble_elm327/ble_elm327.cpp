@@ -177,16 +177,33 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
 
     case ESP_GATTC_SEARCH_CMPL_EVT: {
       auto *rx = this->parent_->get_characteristic(service_uuid_, rx_char_uuid_);
-      if (rx != nullptr) {
-        ESP_LOGI(TAG, "RX properties=0x%02X", rx->properties);
+      if (rx == nullptr) {
+        ESP_LOGW(TAG, "RX characteristic not found");
+        break;
       }
+    
+      rx_char_handle_ = rx->handle;
+    
+      ESP_LOGI(TAG, "RX properties=0x%02X", rx->properties);
+      ESP_LOGI(TAG, "RX handle=%u", rx_char_handle_);
+    
       auto *tx_chr = this->parent_->get_characteristic(service_uuid_, tx_char_uuid_);
-      if (tx_chr == nullptr) { ESP_LOGW(TAG, "TX characteristic not found"); break; }
+      if (tx_chr == nullptr) {
+        ESP_LOGW(TAG, "TX characteristic not found");
+        break;
+      }
+    
       tx_char_handle_ = tx_chr->handle;
-
-      ESP_LOGI(TAG, "RX handle=%d TX handle=%d — registering notify", rx_char_handle_, tx_char_handle_);
-      auto status = esp_ble_gattc_register_for_notify(gattc_if_, remote_bda_, rx_char_handle_);
-      if (status != ESP_GATT_OK) ESP_LOGW(TAG, "Register notify failed: %d", status);
+    
+      ESP_LOGI(TAG, "RX handle=%u TX handle=%u — registering notify",
+               rx_char_handle_, tx_char_handle_);
+    
+      auto status = esp_ble_gattc_register_for_notify(
+          gattc_if_, remote_bda_, rx_char_handle_);
+    
+      if (status != ESP_GATT_OK)
+        ESP_LOGW(TAG, "Register notify failed: %d", status);
+    
       break;
     }
 
