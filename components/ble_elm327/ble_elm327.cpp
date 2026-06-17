@@ -176,10 +176,10 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
       break;
 
     case ESP_GATTC_SEARCH_CMPL_EVT: {
-      auto *rx_chr = this->parent_->get_characteristic(service_uuid_, rx_char_uuid_);
-      if (rx_chr == nullptr) { ESP_LOGW(TAG, "RX characteristic not found"); break; }
-      rx_char_handle_ = rx_chr->handle;
-
+      auto *rx = this->parent_->get_characteristic(service_uuid_, rx_char_uuid_);
+      if (rx != nullptr) {
+        ESP_LOGI(TAG, "RX properties=0x%02X", rx->properties);
+      }
       auto *tx_chr = this->parent_->get_characteristic(service_uuid_, tx_char_uuid_);
       if (tx_chr == nullptr) { ESP_LOGW(TAG, "TX characteristic not found"); break; }
       tx_char_handle_ = tx_chr->handle;
