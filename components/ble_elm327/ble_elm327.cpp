@@ -8,6 +8,7 @@ namespace esphome {
 namespace ble_elm327 {
 
 static const char *const TAG = "ble_elm327";
+#error "CUSTOM BLE_ELM327 BUILD ACTIVE"
 // Always sent first on connect, in this order, before any YAML init_commands.
 static const char *const BASE_INIT_COMMANDS[] = {"ATZ", "ATE0", "ATL0", "ATS0", "ATH0", "ATSP0"};
 
