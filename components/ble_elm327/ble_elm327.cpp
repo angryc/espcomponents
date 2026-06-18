@@ -344,11 +344,16 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
 
   if (lines.empty()) return;
 
+  // Debug: print all lines
+  for (size_t i = 0; i < lines.size(); i++) {
+    ESP_LOGD(TAG, "Line %zu: '%s'", i, lines[i].c_str());
+  }
+
   // First line is often the command echo (e.g., "220101")
-  // Skip it if it matches the last sent command
+  // Skip it if it matches the last sent command (pure hex, no spaces)
   size_t start_idx = 0;
   if (!lines[0].empty() && lines[0].find_first_not_of("0123456789ABCDEFabcdef") == std::string::npos) {
-    // Looks like a hex command echo, skip it
+    ESP_LOGD(TAG, "Skipping pure-hex command echo line 0: %s", lines[0].c_str());
     start_idx = 1;
   }
 
