@@ -352,6 +352,19 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
     start_idx = 1;
   }
 
+  // Skip initial ELM327 header line (e.g., "7F 22 12") before frame 0
+  // This is a 3-byte header that appears before the first frame marker
+  if (start_idx < lines.size()) {
+    const std::string &first = lines[start_idx];
+    size_t hex_count = 0;
+    for (char c : first) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
+    if (hex_count == 6) {
+      // Looks like 3-byte header (6 hex chars), skip it
+      ESP_LOGD(TAG, "Skipping initial ELM327 header line: %s", first.c_str());
+      start_idx++;
+    }
+  }
+
   // Collect all hex data from remaining lines, skipping frame headers (0:, 1:, 2:, etc.)
   // and status lines (SEARCHING, CAN ERROR, NO DATA, etc.)
   // For ISO-TP multi-frame: frame 0 has response code + PID + data; frames 1+ have sequence byte + data
