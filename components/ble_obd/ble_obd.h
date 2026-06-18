@@ -19,17 +19,46 @@ namespace espbt = esphome::esp32_ble_tracker;
 
 class BleObdComponent;
 
-class BleObdDevice {
+class BleObdDevice : public PollingComponent {
  public:
+  void update() override;
+  float get_setup_priority() const override { return setup_priority::DATA; }
+
   void set_parent(BleObdComponent *p) { parent_ = p; }
-  virtual void on_response(const std::vector<uint8_t> &data) {}
+  void set_pid(const std::string &pid) { pid_ = pid; }
+  void set_mode(const std::string &mode) { mode_ = mode; }
+  void set_formula(std::function<float(
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t)> f) { formula_ = f; has_formula_ = true; }
+  void add_pre_command(const std::string &cmd) { pre_commands_.push_back(cmd); }
+
+  const std::string &get_pid() const { return pid_; }
+  const std::string &get_mode() const { return mode_; }
+  std::string get_command() const { return mode_ + pid_; }
+  const std::vector<std::string> &get_pre_commands() const { return pre_commands_; }
+
+  virtual void on_response(const std::vector<uint8_t> &data);
   virtual void on_connect() {}
   virtual void on_disconnect() {}
-  virtual std::string get_command() const { return ""; }
-  virtual std::vector<std::string> get_pre_commands() const { return {}; }
+  virtual void dump_config() {}
 
  protected:
   BleObdComponent *parent_{nullptr};
+  std::string pid_;
+  std::string mode_{"01"};
+  std::vector<std::string> pre_commands_;
+  bool has_formula_{false};
+  std::function<float(
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t)> formula_;
 };
 
 class BleObdComponent : public Component, public ble_client::BLEClientNode {
@@ -50,7 +79,7 @@ class BleObdComponent : public Component, public ble_client::BLEClientNode {
   bool send_raw(const std::string &cmd);
   bool is_ready() const { return state_ == State::READY; }
 
-  void register_device(BleObdDevice *d) { devices_.push_back(d); }
+  void add_device(BleObdDevice *d) { devices_.push_back(d); }
   void queue_device(BleObdDevice *d) { pending_.push(d); }
 
  protected:
@@ -86,39 +115,6 @@ class BleObdComponent : public Component, public ble_client::BLEClientNode {
 class BleObdSensor : public sensor::Sensor, public BleObdDevice {
  public:
   void dump_config() override;
-  void set_pid(const std::string &pid) { pid_ = pid; }
-  void set_mode(const std::string &mode) { mode_ = mode; }
-  void set_pre_commands(const std::vector<std::string> &cmds) { pre_commands_ = cmds; }
-  void add_pre_command(const std::string &cmd) { pre_commands_.push_back(cmd); }
-  void set_formula(std::function<float(
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t)> f) { formula_ = f; }
-
-  void queue_command();
-  std::string get_command() const override { return mode_ + pid_; }
-  std::vector<std::string> get_pre_commands() const override { return pre_commands_; }
-
-  void on_response(const std::vector<uint8_t> &data) override;
-  void on_connect() override;
-  void on_disconnect() override;
-
-  void update() override { queue_command(); }
-
- protected:
-  std::string pid_;
-  std::string mode_{"01"};
-  std::vector<std::string> pre_commands_;
-  std::function<float(
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t,
-    uint8_t,uint8_t,uint8_t,uint8_t)> formula_;
 };
 
 }  // namespace ble_obd

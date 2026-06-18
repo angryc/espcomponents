@@ -1,0 +1,20 @@
+#include "ble_elm327_sensor.h"
+#include "esphome/core/log.h"
+
+namespace esphome {
+namespace ble_elm327_24bytes {
+
+static const char *const TAG = "ble_elm327_24bytes.sensor";
+
+void BleElm327Sensor::dump_config() {
+  LOG_SENSOR("  ", "BLE ELM327 Sensor", this);
+  ESP_LOGCONFIG(TAG, "    Mode: %s  PID: %s",
+                mode_.c_str(), pid_.c_str());
+}
+
+void BleElm327Sensor::publish_data(const std::vector<uint8_t> &data) {
+  this->publish_state(this->parse_float(data));
+}
+
+}  // namespace ble_elm327_24bytes
+}  // namespace esphome

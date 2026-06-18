@@ -10,13 +10,82 @@ namespace ble_obd {
 static const char *const TAG = "ble_obd";
 static const char *const BASE_INIT[] = {"ATZ", "ATE0", "ATL0", "ATS0", "ATH0", "ATSP0"};
 
-// ── BleObdComponent ──────────────────────────────────────────────────────────
+static espbt::ESPBTUUID uuid_from_string(const std::string &uuid_str) {
+  std::string clean;
+  for (char c : uuid_str)
+    if (c != ':' && c != '-' && c != ' ')
+      clean += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+  if (clean.size() == 4) {
+    uint16_t val = std::stoul(clean, nullptr, 16);
+    return espbt::ESPBTUUID::from_uint16(val);
+  }
+  if (clean.size() == 8) {
+    uint32_t val = std::stoul(clean, nullptr, 16);
+    return espbt::ESPBTUUID::from_uint32(val);
+  }
+  uint8_t raw[16] = {};
+  for (size_t i = 0; i < clean.size() / 2 && i < 16; i++)
+    raw[i] = static_cast<uint8_t>(std::stoul(clean.substr(i * 2, 2), nullptr, 16));
+  return espbt::ESPBTUUID::from_raw(raw);
+}
+
+// ── BleObdDevice ──────────────────────────────────────────────────────────────
+
+void BleObdDevice::update() {
+  if (parent_) parent_->queue_device(this);
+}
+
+void BleObdDevice::on_response(const std::vector<uint8_t> &data) {
+  if (!has_formula_) {
+    float val = 0;
+    for (uint8_t byte : data) val = val * 256.0f + byte;
+    this->publish_state(val);
+    return;
+  }
+
+  uint8_t a = data.size() > 0  ? data[0]  : 0;
+  uint8_t b = data.size() > 1  ? data[1]  : 0;
+  uint8_t c = data.size() > 2  ? data[2]  : 0;
+  uint8_t d = data.size() > 3  ? data[3]  : 0;
+  uint8_t e = data.size() > 4  ? data[4]  : 0;
+  uint8_t f = data.size() > 5  ? data[5]  : 0;
+  uint8_t g = data.size() > 6  ? data[6]  : 0;
+  uint8_t h = data.size() > 7  ? data[7]  : 0;
+  uint8_t ii = data.size() > 8  ? data[8]  : 0;
+  uint8_t jj = data.size() > 9  ? data[9]  : 0;
+  uint8_t k = data.size() > 10 ? data[10] : 0;
+  uint8_t l = data.size() > 11 ? data[11] : 0;
+  uint8_t m = data.size() > 12 ? data[12] : 0;
+  uint8_t n = data.size() > 13 ? data[13] : 0;
+  uint8_t o = data.size() > 14 ? data[14] : 0;
+  uint8_t p = data.size() > 15 ? data[15] : 0;
+  uint8_t q = data.size() > 16 ? data[16] : 0;
+  uint8_t r = data.size() > 17 ? data[17] : 0;
+  uint8_t s = data.size() > 18 ? data[18] : 0;
+  uint8_t t = data.size() > 19 ? data[19] : 0;
+  uint8_t u = data.size() > 20 ? data[20] : 0;
+  uint8_t v = data.size() > 21 ? data[21] : 0;
+  uint8_t w = data.size() > 22 ? data[22] : 0;
+  uint8_t x = data.size() > 23 ? data[23] : 0;
+  float val = formula_(a,b,c,d,e,f,g,h,ii,jj,k,l,m,n,o,p,q,r,s,t,u,v,w,x);
+  ESP_LOGI(TAG, "Sensor '%s': %.1f", this->get_pid().c_str(), val);
+  this->publish_state(val);
+}
+
+// ── BleObdSensor ──────────────────────────────────────────────────────────────
+
+void BleObdSensor::dump_config() {
+  LOG_SENSOR("  ", "BLE OBD Sensor", this);
+  ESP_LOGCONFIG(TAG, "    Mode: %s  PID: %s", this->get_mode().c_str(), this->get_pid().c_str());
+}
+
+// ── BleObdComponent ───────────────────────────────────────────────────────────
 
 void BleObdComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up BLE OBD...");
-  service_uuid_ = espbt::ESPBTUUID::from_string(service_uuid_str_);
-  rx_char_uuid_ = espbt::ESPBTUUID::from_string(rx_char_uuid_str_);
-  tx_char_uuid_ = espbt::ESPBTUUID::from_string(tx_char_uuid_str_);
+  service_uuid_ = uuid_from_string(service_uuid_str_);
+  rx_char_uuid_ = uuid_from_string(rx_char_uuid_str_);
+  tx_char_uuid_ = uuid_from_string(tx_char_uuid_str_);
 }
 
 void BleObdComponent::dump_config() {
@@ -26,10 +95,10 @@ void BleObdComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  TX Char   : %s", tx_char_uuid_str_.c_str());
   ESP_LOGCONFIG(TAG, "  Init cmds : %u", (unsigned)init_commands_.size());
   ESP_LOGCONFIG(TAG, "  Devices   : %u", (unsigned)devices_.size());
+  for (auto *d : devices_) d->dump_config();
 }
 
 void BleObdComponent::loop() {
-  // Drain tx queue
   if (!tx_queue_.empty()) {
     if (millis() - last_tx_time_ < tx_delay_ms_) return;
     auto cmd = tx_queue_.front();
@@ -39,7 +108,6 @@ void BleObdComponent::loop() {
     return;
   }
 
-  // Queue empty + INIT state → transition to READY
   if (state_ == State::INIT && tx_queue_.empty()) {
     state_ = State::READY;
     ESP_LOGI(TAG, "ELM327 ready");
@@ -47,10 +115,8 @@ void BleObdComponent::loop() {
     return;
   }
 
-  // READY + no pending → nothing to do
   if (state_ != State::READY || pending_.empty()) return;
 
-  // Queue next pending device's commands
   auto *dev = pending_.front();
   pending_.pop();
   current_device_ = dev;
@@ -143,7 +209,8 @@ bool BleObdComponent::send_raw(const std::string &cmd) {
   if (chr == nullptr) return false;
 
   std::string framed = cmd + "\r";
-  chr->write_value(reinterpret_cast<const uint8_t *>(framed.data()), framed.size(),
+  chr->write_value(reinterpret_cast<uint8_t *>(const_cast<char *>(framed.data())),
+                   static_cast<int16_t>(framed.size()),
                    ESP_GATT_WRITE_TYPE_NO_RSP);
   ESP_LOGD(TAG, ">> %s", cmd.c_str());
   return true;
@@ -164,8 +231,6 @@ void BleObdComponent::process_complete_response_(const std::string &full_respons
 
   if (bytes.empty()) return;
 
-  // Strip response code + PID
-  // Mode 01 → 0x41, skip 2 | Mode 22 → 0x62, skip 3
   uint8_t resp_code = bytes[0];
   size_t skip = (resp_code == 0x62) ? 3 : 2;
 
@@ -178,57 +243,6 @@ void BleObdComponent::process_complete_response_(const std::string &full_respons
     current_device_->on_response(data);
   }
 }
-
-// ── BleObdSensor ─────────────────────────────────────────────────────────────
-
-void BleObdSensor::dump_config() {
-  LOG_SENSOR("  ", "BLE OBD Sensor", this);
-  ESP_LOGCONFIG(TAG, "    Mode: %s  PID: %s", mode_.c_str(), pid_.c_str());
-}
-
-void BleObdSensor::queue_command() {
-  if (parent_) parent_->queue_device(this);
-}
-
-void BleObdSensor::on_response(const std::vector<uint8_t> &data) {
-  if (!formula_.has_value()) {
-    float val = 0;
-    for (uint8_t byte : data) val = val * 256.0f + byte;
-    this->publish_state(val);
-    return;
-  }
-
-  uint8_t a = data.size() > 0  ? data[0]  : 0;
-  uint8_t b = data.size() > 1  ? data[1]  : 0;
-  uint8_t c = data.size() > 2  ? data[2]  : 0;
-  uint8_t d = data.size() > 3  ? data[3]  : 0;
-  uint8_t e = data.size() > 4  ? data[4]  : 0;
-  uint8_t f = data.size() > 5  ? data[5]  : 0;
-  uint8_t g = data.size() > 6  ? data[6]  : 0;
-  uint8_t h = data.size() > 7  ? data[7]  : 0;
-  uint8_t ii = data.size() > 8  ? data[8]  : 0;
-  uint8_t jj = data.size() > 9  ? data[9]  : 0;
-  uint8_t k = data.size() > 10 ? data[10] : 0;
-  uint8_t l = data.size() > 11 ? data[11] : 0;
-  uint8_t m = data.size() > 12 ? data[12] : 0;
-  uint8_t n = data.size() > 13 ? data[13] : 0;
-  uint8_t o = data.size() > 14 ? data[14] : 0;
-  uint8_t p = data.size() > 15 ? data[15] : 0;
-  uint8_t q = data.size() > 16 ? data[16] : 0;
-  uint8_t r = data.size() > 17 ? data[17] : 0;
-  uint8_t s = data.size() > 18 ? data[18] : 0;
-  uint8_t t = data.size() > 19 ? data[19] : 0;
-  uint8_t u = data.size() > 20 ? data[20] : 0;
-  uint8_t v = data.size() > 21 ? data[21] : 0;
-  uint8_t w = data.size() > 22 ? data[22] : 0;
-  uint8_t x = data.size() > 23 ? data[23] : 0;
-  float val = (*formula_)(a,b,c,d,e,f,g,h,ii,jj,k,l,m,n,o,p,q,r,s,t,u,v,w,x);
-  ESP_LOGI(TAG, "Sensor '%s': %.1f", this->get_name().c_str(), val);
-  this->publish_state(val);
-}
-
-void BleObdSensor::on_connect() {}
-void BleObdSensor::on_disconnect() {}
 
 }  // namespace ble_obd
 }  // namespace esphome

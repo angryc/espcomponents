@@ -2,12 +2,12 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
 from esphome.const import CONF_ID
-from .. import ble_obd_ns, BleObdComponent
+from .. import ble_obd_ns, BleObdComponent, BleObdDevice
 
 DEPENDENCIES = ["ble_obd"]
 
 BleObdSensor = ble_obd_ns.class_(
-    "BleObdSensor", sensor.Sensor
+    "BleObdSensor", sensor.Sensor, BleObdDevice
 )
 
 CONF_BLE_OBD_ID = "ble_obd_id"
@@ -37,9 +37,10 @@ CONFIG_SCHEMA = cv.All(
 
 async def to_code(config):
     var = await sensor.new_sensor(config)
+    await cg.register_component(var, config)
 
     paren = await cg.get_variable(config[CONF_BLE_OBD_ID])
-    cg.add(paren.register_device(var))
+    cg.add(paren.add_device(var))
     cg.add(var.set_parent(paren))
 
     cg.add(var.set_pid(config[CONF_PID]))

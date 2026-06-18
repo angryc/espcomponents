@@ -10,6 +10,9 @@ ble_obd_ns = cg.esphome_ns.namespace("ble_obd")
 BleObdComponent = ble_obd_ns.class_(
     "BleObdComponent", cg.Component, ble_client.BLEClientNode
 )
+BleObdDevice = ble_obd_ns.class_(
+    "BleObdDevice", cg.PollingComponent
+)
 
 CONF_BLE_CLIENT_ID = "ble_client_id"
 CONF_SERVICE_UUID = "service_uuid"

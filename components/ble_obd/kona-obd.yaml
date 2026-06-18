@@ -32,7 +32,7 @@ captive_portal:
 
 external_components:
   - source: github://angryc/espcomponents
-    components: [ble_obd]
+    components: [ble_]
     refresh: always
 
 esp32_ble_tracker:
