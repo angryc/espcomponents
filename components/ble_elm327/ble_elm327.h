@@ -113,6 +113,7 @@ class BleElm327Component : public Component, public ble_client::BLEClientNode {
 
   bool send_command(const std::string &cmd);
   void on_notify(const uint8_t *data, uint16_t length);
+  void process_complete_response(const std::string &full_response);
   void process_response(const std::string &response);
 
   // BLE handles
