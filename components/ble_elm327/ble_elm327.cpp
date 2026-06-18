@@ -172,6 +172,8 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
       while (!tx_queue_.empty()) tx_queue_.pop();
       for (auto *d : devices_) d->on_dequeue();
       current_pre_commands_.clear();
+      response_buffer_.clear();
+      response_in_progress_ = false;
       ESP_LOGW(TAG, "Disconnected from ELM327");
       break;
 
@@ -281,8 +283,102 @@ bool BleElm327Component::send_command(const std::string &cmd) {
 }
 
 void BleElm327Component::on_notify(const uint8_t *data, uint16_t length) {
-  std::string resp(reinterpret_cast<const char *>(data), length);
-  process_response(resp);
+  std::string fragment(reinterpret_cast<const char *>(data), length);
+  
+  // Accumulate response fragments
+  response_buffer_ += fragment;
+  response_in_progress_ = true;
+  
+  // Check if response is complete (ends with '>' prompt)
+  if (response_buffer_.find('>') != std::string::npos) {
+    // Response complete, process it
+    process_complete_response(response_buffer_);
+    response_buffer_.clear();
+    response_in_progress_ = false;
+  }
+  // Otherwise wait for more fragments
+}
+
+void BleElm327Component::process_complete_response(const std::string &full_response) {
+  ESP_LOGD(TAG, "<< FULL RESPONSE: %s", full_response.c_str());
+  ESP_LOGI(TAG, "RECV FULL: %s", full_response.c_str());
+
+  if (elm_state_ != ElmState::READY) return;
+
+  // Split response into lines
+  std::vector<std::string> lines;
+  std::string line;
+  for (char c : full_response) {
+    if (c == '\r' || c == '\n') {
+      if (!line.empty()) {
+        lines.push_back(line);
+        line.clear();
+      }
+    } else {
+      line += c;
+    }
+  }
+  if (!line.empty()) lines.push_back(line);
+
+  if (lines.empty()) return;
+
+  // First line is often the command echo (e.g., "220101")
+  // Skip it if it matches the last sent command
+  size_t start_idx = 0;
+  if (!lines[0].empty() && lines[0].find_first_not_of("0123456789ABCDEFabcdef") == std::string::npos) {
+    // Looks like a hex command echo, skip it
+    start_idx = 1;
+  }
+
+  // Collect all hex data from remaining lines, skipping frame headers (0:, 1:, 2:, etc.)
+  // and status lines (SEARCHING, CAN ERROR, NO DATA, etc.)
+  std::string hex;
+  for (size_t i = start_idx; i < lines.size(); i++) {
+    const std::string &ln = lines[i];
+    
+    // Skip status lines
+    if (ln == "SEARCHING" || ln == "SEARCHING." || 
+        ln.find("ERROR") != std::string::npos ||
+        ln.find("NO DATA") != std::string::npos ||
+        ln.find("UNABLE TO CONNECT") != std::string::npos ||
+        ln == ">") {
+      continue;
+    }
+    
+    // Skip frame header lines like "0:", "1:", "2:", etc.
+    if (ln.size() >= 2 && ln[1] == ':' && isxdigit(static_cast<unsigned char>(ln[0]))) {
+      // This is a frame header line, extract hex after the colon
+      std::string data_part = ln.substr(2);
+      for (char c : data_part) {
+        if (isxdigit(static_cast<unsigned char>(c))) hex += c;
+      }
+      continue;
+    }
+    
+    // Skip lines that are just prompts or separators
+    if (ln == ">" || ln == ":" || ln.empty()) continue;
+    
+    // Regular data line - extract hex
+    for (char c : ln) {
+      if (isxdigit(static_cast<unsigned char>(c))) hex += c;
+    }
+  }
+
+  // Must have at least 4 hex chars (1-byte response code + 1-byte PID/data)
+  if (hex.size() < 4) return;
+
+  // Parse consecutive 2-char groups into bytes
+  std::vector<uint8_t> bytes;
+  for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+    bytes.push_back(static_cast<uint8_t>(std::stoul(hex.substr(i, 2), nullptr, 16)));
+  }
+
+  if (bytes.empty()) return;
+
+  // Broadcast to all devices — each checks its own mode+PID and updates if matched
+  for (auto *d : devices_) {
+    d->on_receive(bytes);
+  }
 }
 
 void BleElm327Component::process_response(const std::string &response) {

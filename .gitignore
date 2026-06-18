@@ -145,3 +145,7 @@ cython_debug/
 #*.json
 .DS_Store
 .claude/
+components/ble_elm327/archive/kona-obd Kopie.yaml
+components/ble_elm327/kona-obd.yaml
+components/ble_elm327/Kona.md
+components/ble_elm327/todo.rtf
