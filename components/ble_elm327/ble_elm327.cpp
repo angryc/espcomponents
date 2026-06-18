@@ -107,7 +107,7 @@ void BleElm327Component::loop() {
     last_tx_time_ = millis();
     if (elm_state_ == ElmState::CONNECTED && tx_queue_.empty()) {
       elm_state_ = ElmState::READY;
-      ESP_LOGI(TAG, "ELM327 initialized and ready");
+      ESP_LOGD(TAG, "ELM327 initialized and ready");
     }
     return;
   }
@@ -150,8 +150,8 @@ void BleElm327Component::dump_config() {
 }
 
 void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
-                                              esp_ble_gattc_cb_param_t *param) {
-  ESP_LOGE(TAG, "GATTC EVENT %d", event);
+                                               esp_ble_gattc_cb_param_t *param) {
+  ESP_LOGD(TAG, "GATTC EVENT %d", event);
   switch (event) {
     case ESP_GATTC_OPEN_EVT:
       if (param->open.status != ESP_GATT_OK) {
@@ -221,43 +221,43 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
         tx_queue_.push({framed, nullptr});
       }
       for (const auto &cmd : extra_init_commands_) tx_queue_.push({cmd, nullptr});
-      ESP_LOGI(TAG, "Queued %u init commands (%u base + %u extra)", (unsigned) tx_queue_.size(),
-               (unsigned)(sizeof(BASE_INIT_COMMANDS) / sizeof(BASE_INIT_COMMANDS[0])),
-               (unsigned) extra_init_commands_.size());
-      break;
+       ESP_LOGD(TAG, "Queued %u init commands (%u base + %u extra)", (unsigned) tx_queue_.size(),
+                (unsigned)(sizeof(BASE_INIT_COMMANDS) / sizeof(BASE_INIT_COMMANDS[0])),
+                (unsigned) extra_init_commands_.size());
+       break;
 
     case ESP_GATTC_NOTIFY_EVT: {
-      ESP_LOGI(TAG,
+      ESP_LOGD(TAG,
                "NOTIFY is_notify=%d len=%u handle=%u",
                param->notify.is_notify,
                param->notify.value_len,
                param->notify.handle);
-    
+     
       std::string txt(
           (char *) param->notify.value,
           param->notify.value_len);
-    
-      ESP_LOGI(TAG, "RX TXT: '%s'", txt.c_str());
-    
+     
+      ESP_LOGD(TAG, "RX TXT: '%s'", txt.c_str());
+     
       std::string hex;
       char buf[4];
-    
+     
       for (int i = 0; i < param->notify.value_len; i++) {
         snprintf(buf, sizeof(buf), "%02X ", param->notify.value[i]);
         hex += buf;
       }
-    
-      ESP_LOGI(TAG, "RX HEX: %s", hex.c_str());
-    
+     
+      ESP_LOGD(TAG, "RX HEX: %s", hex.c_str());
+     
       if (param->notify.handle == rx_char_handle_)
         on_notify(param->notify.value, param->notify.value_len);
-    
+     
       break;
     } 
 
 
     case ESP_GATTC_WRITE_CHAR_EVT:
-      ESP_LOGI(TAG, "WRITE OK");
+      ESP_LOGD(TAG, "WRITE OK");
       if (param->write.status != ESP_GATT_OK)
         ESP_LOGW(TAG, "Write failed, status=%d", param->write.status);
       break;
@@ -271,14 +271,14 @@ bool BleElm327Component::send_command(const std::string &cmd) {
   if (client_state_ != espbt::ClientState::ESTABLISHED || tx_char_handle_ == 0) return false;
   auto *chr = this->parent_->get_characteristic(service_uuid_, tx_char_uuid_);
   if (chr == nullptr) { ESP_LOGW(TAG, "TX characteristic missing"); return false; }
-  ESP_LOGI(TAG, "SEND HEX:");
+  ESP_LOGD(TAG, "SEND HEX:");
   for (auto c : cmd)
-    ESP_LOGI(TAG, "%02X", (uint8_t)c);
-  ESP_LOGI(TAG, "TX handle=%u", chr->handle);
+    ESP_LOGD(TAG, "%02X", (uint8_t)c);
+  ESP_LOGD(TAG, "TX handle=%u", chr->handle);
   chr->write_value(reinterpret_cast<uint8_t *>(const_cast<char *>(cmd.data())), cmd.size(),
                    ESP_GATT_WRITE_TYPE_NO_RSP);
   ESP_LOGD(TAG, ">> %s", cmd.c_str());
-  ESP_LOGI(TAG, "SEND: %s", cmd.c_str());
+  ESP_LOGD(TAG, "SEND: %s", cmd.c_str());
   return true;
 }
 
@@ -301,7 +301,7 @@ void BleElm327Component::on_notify(const uint8_t *data, uint16_t length) {
 
 void BleElm327Component::process_complete_response(const std::string &full_response) {
   ESP_LOGD(TAG, "<< FULL RESPONSE: %s", full_response.c_str());
-  ESP_LOGI(TAG, "RECV FULL: %s", full_response.c_str());
+  ESP_LOGD(TAG, "RECV FULL: %s", full_response.c_str());
 
   if (elm_state_ != ElmState::READY) return;
 
@@ -375,13 +375,13 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
 
   if (bytes.empty()) return;
 
-  // Debug: log key bytes for Kona BMS frame (index 4 = e/SOC, index 11 = l/charging)
-  if (bytes.size() > 11) {
-    ESP_LOGI(TAG, "KONA BMS: bytes[4]=0x%02X (%d), bytes[11]=0x%02X (%d)", 
-             bytes[4], bytes[4], bytes[11], bytes[11]);
-  } else if (bytes.size() > 4) {
-    ESP_LOGI(TAG, "KONA BMS: bytes[4]=0x%02X (%d), frame too short (%zu bytes)", 
-             bytes[4], bytes[4], bytes.size());
+  // Debug: mode 22 with 4-char PID → skip=3 (response code + 2 PID bytes)
+  constexpr size_t skip = 3;
+  if (bytes.size() > skip + 11) {
+    ESP_LOGI(TAG, "KONA BMS: full[4]=0x%02X full[11]=0x%02X | data[4]=0x%02X (%d) data[11]=0x%02X (%d)", 
+             bytes[4], bytes[11], 
+             bytes[skip + 4], bytes[skip + 4], 
+             bytes[skip + 11], bytes[skip + 11]);
   }
 
   // Broadcast to all devices — each checks its own mode+PID and updates if matched
