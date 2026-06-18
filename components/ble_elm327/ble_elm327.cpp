@@ -29,17 +29,30 @@ bool BleElm327Device::on_receive(const std::vector<uint8_t> &bytes) {
 
   // Response code = 0x40 + mode (hex). Mode "01" → 0x41, mode "22" → 0x62.
   uint8_t expected_code = 0x40 + static_cast<uint8_t>(std::stoul(mode_, nullptr, 16));
-  if (bytes[0] != expected_code) return false;
+  if (bytes[0] != expected_code) {
+    ESP_LOGD(TAG, "Device '%s': response code mismatch: got 0x%02X, expected 0x%02X", 
+             this->get_name().c_str(), bytes[0], expected_code);
+    return false;
+  }
 
   if (pid_.size() == 2) {
-    if (bytes[1] != static_cast<uint8_t>(std::stoul(pid_, nullptr, 16))) return false;
+    if (bytes[1] != static_cast<uint8_t>(std::stoul(pid_, nullptr, 16))) {
+      ESP_LOGD(TAG, "Device '%s': PID mismatch (2-char)", this->get_name().c_str());
+      return false;
+    }
   } else {
     uint8_t pid_hi = static_cast<uint8_t>(std::stoul(pid_.substr(0, 2), nullptr, 16));
     uint8_t pid_lo = static_cast<uint8_t>(std::stoul(pid_.substr(2, 2), nullptr, 16));
-    if (bytes[1] != pid_hi || bytes[2] != pid_lo) return false;
+    if (bytes[1] != pid_hi || bytes[2] != pid_lo) {
+      ESP_LOGD(TAG, "Device '%s': PID mismatch: got 0x%02X 0x%02X, expected 0x%02X 0x%02X", 
+               this->get_name().c_str(), bytes[1], bytes[2], pid_hi, pid_lo);
+      return false;
+    }
   }
 
   std::vector<uint8_t> data(bytes.begin() + skip, bytes.end());
+  ESP_LOGI(TAG, "Device '%s': matched response, data size=%zu, calling publish_data", 
+           this->get_name().c_str(), data.size());
   publish_data(data);
   return true;
 }
@@ -378,14 +391,17 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
   // Debug: mode 22 with 4-char PID → skip=3 (response code + 2 PID bytes)
   constexpr size_t skip = 3;
   if (bytes.size() > skip + 11) {
-    ESP_LOGI(TAG, "KONA BMS: full[4]=0x%02X full[11]=0x%02X | data[4]=0x%02X (%d) data[11]=0x%02X (%d)", 
+    ESP_LOGI(TAG, "KONA BMS: full[4]=0x%02X full[11]=0x%02X | data[0]=0x%02X data[1]=0x%02X data[4]=0x%02X (%d) data[11]=0x%02X (%d)", 
              bytes[4], bytes[11], 
+             bytes[skip + 0], bytes[skip + 1],
              bytes[skip + 4], bytes[skip + 4], 
              bytes[skip + 11], bytes[skip + 11]);
   }
 
+  ESP_LOGI(TAG, "Broadcasting response to %zu devices", devices_.size());
   // Broadcast to all devices — each checks its own mode+PID and updates if matched
   for (auto *d : devices_) {
+    ESP_LOGD(TAG, "  Trying device: '%s' mode=%s pid=%s", d->get_name().c_str(), d->get_mode().c_str(), d->get_pid().c_str());
     d->on_receive(bytes);
   }
 }
