@@ -30,8 +30,8 @@ bool BleElm327Device::on_receive(const std::vector<uint8_t> &bytes) {
   // Response code = 0x40 + mode (hex). Mode "01" → 0x41, mode "22" → 0x62.
   uint8_t expected_code = 0x40 + static_cast<uint8_t>(std::stoul(mode_, nullptr, 16));
   if (bytes[0] != expected_code) {
-    ESP_LOGD(TAG, "Device '%s': response code mismatch: got 0x%02X, expected 0x%02X", 
-             this->get_device_name().c_str(), bytes[0], expected_code);
+    ESP_LOGI(TAG, "Device '%s': response code mismatch: got 0x%02X, expected 0x%02X (bytes[0]=0x%02X, bytes[1]=0x%02X, bytes[2]=0x%02X, size=%zu)", 
+             this->get_device_name().c_str(), bytes[0], expected_code, bytes[0], bytes.size()>1?bytes[1]:0, bytes.size()>2?bytes[2]:0, bytes.size());
     return false;
   }
 
@@ -301,12 +301,16 @@ void BleElm327Component::on_notify(const uint8_t *data, uint16_t length) {
   // Accumulate response fragments
   response_buffer_ += fragment;
   
+  // Debug: show buffer state
+  ESP_LOGD(TAG, "on_notify: fragment='%s', buffer='%s'", fragment.c_str(), response_buffer_.c_str());
+  
   // Process all complete responses (split by '>' prompt)
   size_t pos;
   while ((pos = response_buffer_.find('>')) != std::string::npos) {
     std::string complete_response = response_buffer_.substr(0, pos + 1);  // include '>'
     response_buffer_ = response_buffer_.substr(pos + 1);
     
+    ESP_LOGI(TAG, "Processing complete response: '%s'", complete_response.c_str());
     process_complete_response(complete_response);
   }
   // Remaining partial response stays in buffer
@@ -399,6 +403,8 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
 
   // Must have at least 4 hex chars (1-byte response code + 1-byte PID/data)
   if (hex.size() < 4) return;
+
+  ESP_LOGI(TAG, "PARSED HEX: %s (len=%zu)", hex.c_str(), hex.size());
 
   // Parse consecutive 2-char groups into bytes
   std::vector<uint8_t> bytes;
