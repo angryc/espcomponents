@@ -366,7 +366,7 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
     }
   }
   
-  // Also skip command echo line if it's the first remaining line (e.g., "220101")
+  // Also skip command echo line if it's the first remaining line (e.g., "220101" or "220105")
   if (start_idx < lines.size()) {
     const std::string &first = lines[start_idx];
     size_t hex_count = 0;
@@ -375,6 +375,23 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
       // Likely command echo (4-8 hex chars = 2-4 byte command)
       ESP_LOGD(TAG, "Skipping command echo line: %s", first.c_str());
       start_idx++;
+    }
+  }
+  
+  // Skip any additional 6-hex-char lines (duplicate initial headers) before frame 0
+  while (start_idx < lines.size()) {
+    const std::string &ln = lines[start_idx];
+    size_t hex_count = 0;
+    for (char c : ln) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
+    // Frame headers like "0:" have format "0:..." - check for this first
+    if (ln.size() >= 2 && ln[1] == ':' && isxdigit(static_cast<unsigned char>(ln[0]))) {
+      break; // Found frame 0, stop skipping
+    }
+    if (hex_count == 6) {
+      ESP_LOGD(TAG, "Skipping duplicate header line: %s", ln.c_str());
+      start_idx++;
+    } else {
+      break;
     }
   }
 
