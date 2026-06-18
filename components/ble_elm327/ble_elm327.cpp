@@ -401,7 +401,7 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
       frame_num = ln[0] - '0';
       std::string data_part = ln.substr(2);
       
-      // For frame 0: include all data (response code + PID + data)
+      // For frame 0: include all data (response code + response code + PID (we'll strip later)
       // For frame 1+: skip first byte (ISO-TP sequence counter: 0x7F, 0xFF, etc.)
       bool skip_first_byte = (frame_num > 0);
       bool first_byte_done = !skip_first_byte;
@@ -420,6 +420,15 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
     
     // Skip lines that are just prompts or separators
     if (ln == ">" || ln == ":" || ln.empty()) continue;
+    
+    // Skip ELM327 header lines (e.g., "7F 22 12") that appear between frames
+    // These are 3-byte lines = 6 hex chars
+    size_t hex_count = 0;
+    for (char c : ln) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
+    if (hex_count == 6) {
+      ESP_LOGD(TAG, "Skipping mid-response ELM327 header: %s", ln.c_str());
+      continue;
+    }
     
     // Regular data line - extract hex
     for (char c : ln) {
