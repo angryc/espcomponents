@@ -300,19 +300,24 @@ void BleElm327Component::on_notify(const uint8_t *data, uint16_t length) {
   
   // Accumulate response fragments
   response_buffer_ += fragment;
-  response_in_progress_ = true;
   
-  // Check if response is complete (ends with '>' prompt)
-  if (response_buffer_.find('>') != std::string::npos) {
-    // Response complete, process it
-    process_complete_response(response_buffer_);
-    response_buffer_.clear();
-    response_in_progress_ = false;
+  // Process all complete responses (split by '>' prompt)
+  size_t pos;
+  while ((pos = response_buffer_.find('>')) != std::string::npos) {
+    std::string complete_response = response_buffer_.substr(0, pos + 1);  // include '>'
+    response_buffer_ = response_buffer_.substr(pos + 1);
+    
+    process_complete_response(complete_response);
   }
-  // Otherwise wait for more fragments
+  // Remaining partial response stays in buffer
 }
 
 void BleElm327Component::process_complete_response(const std::string &full_response) {
+  // Skip empty or whitespace-only responses
+  if (full_response.empty() || full_response.find_first_not_of(" \t\r\n>") == std::string::npos) {
+    return;
+  }
+
   ESP_LOGD(TAG, "<< FULL RESPONSE: %s", full_response.c_str());
   ESP_LOGD(TAG, "RECV FULL: %s", full_response.c_str());
 
