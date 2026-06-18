@@ -153,3 +153,4 @@ components/ble_elm327/kona-obd-int.yaml
 components/ble_elm327/archive/kona-obd Kopie 2.yaml
 components/ble_elm327_24bytes/kona-obd.yaml
 components/ble_elm327/kona-obd-elm327.yaml
+components/ble_elm327_32bytes/kona-obd.yaml

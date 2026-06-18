@@ -10,7 +10,7 @@ from .. import (
     inject_preset,
 )
 
-DEPENDENCIES = ["ble_elm327_24bytes"]
+DEPENDENCIES = ["ble_elm327_32bytes"]
 
 BleElm327Sensor = ble_elm327_ns.class_("BleElm327Sensor", sensor.Sensor, BleElm327Device)
 

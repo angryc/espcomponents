@@ -2,9 +2,9 @@
 #include "esphome/core/log.h"
 
 namespace esphome {
-namespace ble_elm327_24bytes {
+namespace ble_elm327_32bytes {
 
-static const char *const TAG = "ble_elm327_24bytes.sensor";
+static const char *const TAG = "ble_elm327_32bytes.sensor";
 
 void BleElm327Sensor::dump_config() {
   LOG_SENSOR("  ", "BLE ELM327 Sensor", this);
@@ -16,5 +16,5 @@ void BleElm327Sensor::publish_data(const std::vector<uint8_t> &data) {
   this->publish_state(this->parse_float(data));
 }
 
-}  // namespace ble_elm327_24bytes
+}  // namespace ble_elm327_32bytes
 }  // namespace esphome

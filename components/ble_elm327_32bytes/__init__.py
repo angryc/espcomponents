@@ -16,7 +16,7 @@ CODEOWNERS = ["@eigger"]
 MULTI_CONF = True
 
 
-ble_elm327_ns = cg.esphome_ns.namespace("ble_elm327_24bytes")
+ble_elm327_ns = cg.esphome_ns.namespace("ble_elm327_32bytes")
 # Component is NOT a PollingComponent — per-device polling only
 BleElm327Component = ble_elm327_ns.class_(
     "BleElm327Component", cg.Component, ble_client.BLEClientNode
@@ -130,7 +130,9 @@ async def register_ble_elm327_device(var, config):
              (cg.uint8, "i"), (cg.uint8, "j"), (cg.uint8, "k"), (cg.uint8, "l"),
              (cg.uint8, "m"), (cg.uint8, "n"), (cg.uint8, "o"), (cg.uint8, "p"),
              (cg.uint8, "q"), (cg.uint8, "r"), (cg.uint8, "s"), (cg.uint8, "t"),
-             (cg.uint8, "u"), (cg.uint8, "v"), (cg.uint8, "w"), (cg.uint8, "x")],
+             (cg.uint8, "u"), (cg.uint8, "v"), (cg.uint8, "w"), (cg.uint8, "x"),
+             (cg.uint8, "y"), (cg.uint8, "z"), (cg.uint8, "aa"), (cg.uint8, "ab"),
+             (cg.uint8, "ac"), (cg.uint8, "ad"), (cg.uint8, "ae"), (cg.uint8, "af")],
             return_type=cg.float_,
         )
         cg.add(var.set_formula(formula_))

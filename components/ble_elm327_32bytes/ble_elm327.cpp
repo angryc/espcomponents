@@ -5,9 +5,9 @@
 #ifdef USE_ESP32
 
 namespace esphome {
-namespace ble_elm327_24bytes {
+namespace ble_elm327_32bytes {
 
-static const char *const TAG = "ble_elm327_24bytes";
+static const char *const TAG = "ble_elm327_32bytes";
 static const char *const BASE_INIT_COMMANDS[] = {"ATZ", "ATE0", "ATL0", "ATS0", "ATH0", "ATSP0"};
 
 static std::string normalize_command(const std::string &cmd) {
@@ -42,31 +42,39 @@ bool BleElm327Device::on_receive(const std::vector<uint8_t> &bytes) {
 
 float BleElm327Device::parse_float(const std::vector<uint8_t> &data) {
   if (formula_.has_value()) {
-    uint8_t a = data.size() > 0  ? data[0]  : 0;
-    uint8_t b = data.size() > 1  ? data[1]  : 0;
-    uint8_t c = data.size() > 2  ? data[2]  : 0;
-    uint8_t d = data.size() > 3  ? data[3]  : 0;
-    uint8_t e = data.size() > 4  ? data[4]  : 0;
-    uint8_t f = data.size() > 5  ? data[5]  : 0;
-    uint8_t g = data.size() > 6  ? data[6]  : 0;
-    uint8_t h = data.size() > 7  ? data[7]  : 0;
-    uint8_t i = data.size() > 8  ? data[8]  : 0;
-    uint8_t j = data.size() > 9  ? data[9]  : 0;
-    uint8_t k = data.size() > 10 ? data[10] : 0;
-    uint8_t l = data.size() > 11 ? data[11] : 0;
-    uint8_t m = data.size() > 12 ? data[12] : 0;
-    uint8_t n = data.size() > 13 ? data[13] : 0;
-    uint8_t o = data.size() > 14 ? data[14] : 0;
-    uint8_t p = data.size() > 15 ? data[15] : 0;
-    uint8_t q = data.size() > 16 ? data[16] : 0;
-    uint8_t r = data.size() > 17 ? data[17] : 0;
-    uint8_t s = data.size() > 18 ? data[18] : 0;
-    uint8_t t = data.size() > 19 ? data[19] : 0;
-    uint8_t u = data.size() > 20 ? data[20] : 0;
-    uint8_t v = data.size() > 21 ? data[21] : 0;
-    uint8_t w = data.size() > 22 ? data[22] : 0;
-    uint8_t x = data.size() > 23 ? data[23] : 0;
-    return (*formula_)(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x);
+    uint8_t a  = data.size() > 0  ? data[0]  : 0;
+    uint8_t b  = data.size() > 1  ? data[1]  : 0;
+    uint8_t c  = data.size() > 2  ? data[2]  : 0;
+    uint8_t d  = data.size() > 3  ? data[3]  : 0;
+    uint8_t e  = data.size() > 4  ? data[4]  : 0;
+    uint8_t f  = data.size() > 5  ? data[5]  : 0;
+    uint8_t g  = data.size() > 6  ? data[6]  : 0;
+    uint8_t h  = data.size() > 7  ? data[7]  : 0;
+    uint8_t i  = data.size() > 8  ? data[8]  : 0;
+    uint8_t j  = data.size() > 9  ? data[9]  : 0;
+    uint8_t k  = data.size() > 10 ? data[10] : 0;
+    uint8_t l  = data.size() > 11 ? data[11] : 0;
+    uint8_t m  = data.size() > 12 ? data[12] : 0;
+    uint8_t n  = data.size() > 13 ? data[13] : 0;
+    uint8_t o  = data.size() > 14 ? data[14] : 0;
+    uint8_t p  = data.size() > 15 ? data[15] : 0;
+    uint8_t q  = data.size() > 16 ? data[16] : 0;
+    uint8_t r  = data.size() > 17 ? data[17] : 0;
+    uint8_t s  = data.size() > 18 ? data[18] : 0;
+    uint8_t t  = data.size() > 19 ? data[19] : 0;
+    uint8_t u  = data.size() > 20 ? data[20] : 0;
+    uint8_t v  = data.size() > 21 ? data[21] : 0;
+    uint8_t w  = data.size() > 22 ? data[22] : 0;
+    uint8_t x  = data.size() > 23 ? data[23] : 0;
+    uint8_t y  = data.size() > 24 ? data[24] : 0;
+    uint8_t z  = data.size() > 25 ? data[25] : 0;
+    uint8_t aa = data.size() > 26 ? data[26] : 0;
+    uint8_t ab = data.size() > 27 ? data[27] : 0;
+    uint8_t ac = data.size() > 28 ? data[28] : 0;
+    uint8_t ad = data.size() > 29 ? data[29] : 0;
+    uint8_t ae = data.size() > 30 ? data[30] : 0;
+    uint8_t af = data.size() > 31 ? data[31] : 0;
+    return (*formula_)(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,aa,ab,ac,ad,ae,af);
   }
   float val = 0;
   for (size_t i = 0; i < data.size(); i++) val = val * 256.0f + data[i];
@@ -132,7 +140,7 @@ void BleElm327Component::loop() {
 }
 
 void BleElm327Component::dump_config() {
-  ESP_LOGCONFIG(TAG, "BLE ELM327 (24-byte formulas):");
+  ESP_LOGCONFIG(TAG, "BLE ELM327 (32-byte formulas):");
   ESP_LOGCONFIG(TAG, "  MAC address        : %s", this->parent_->address_str());
   char service_uuid_str[esphome::esp32_ble::UUID_STR_LEN] = {0};
   char rx_char_uuid_str[esphome::esp32_ble::UUID_STR_LEN] = {0};
@@ -258,6 +266,6 @@ void BleElm327Component::process_response(const std::string &response) {
   }
 }
 
-}  // namespace ble_elm327_24bytes
+}  // namespace ble_elm327_32bytes
 }  // namespace esphome
 #endif

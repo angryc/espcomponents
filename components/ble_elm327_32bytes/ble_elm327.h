@@ -12,7 +12,7 @@
 #include <esp_gattc_api.h>
 
 namespace esphome {
-namespace ble_elm327_24bytes {
+namespace ble_elm327_32bytes {
 
 namespace espbt = esphome::esp32_ble_tracker;
 
@@ -33,6 +33,8 @@ class BleElm327Device : public PollingComponent {
   void set_pid(const std::string &pid) { pid_ = pid; }
   void set_mode(const std::string &mode) { mode_ = mode; }
   void set_formula(std::function<float(
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t,
@@ -60,6 +62,8 @@ class BleElm327Device : public PollingComponent {
   std::string mode_{"01"};
   std::vector<std::string> pre_commands_;
   optional<std::function<float(
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t,
@@ -128,6 +132,6 @@ class BleElm327Component : public Component, public ble_client::BLEClientNode {
 
 };
 
-}  // namespace ble_elm327_24bytes
+}  // namespace ble_elm327_32bytes
 }  // namespace esphome
 #endif
