@@ -375,6 +375,15 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
 
   if (bytes.empty()) return;
 
+  // Debug: log key bytes for Kona BMS frame (index 4 = e/SOC, index 11 = l/charging)
+  if (bytes.size() > 11) {
+    ESP_LOGI(TAG, "KONA BMS: bytes[4]=0x%02X (%d), bytes[11]=0x%02X (%d)", 
+             bytes[4], bytes[4], bytes[11], bytes[11]);
+  } else if (bytes.size() > 4) {
+    ESP_LOGI(TAG, "KONA BMS: bytes[4]=0x%02X (%d), frame too short (%zu bytes)", 
+             bytes[4], bytes[4], bytes.size());
+  }
+
   // Broadcast to all devices — each checks its own mode+PID and updates if matched
   for (auto *d : devices_) {
     d->on_receive(bytes);
