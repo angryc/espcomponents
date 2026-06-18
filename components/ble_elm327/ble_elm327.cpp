@@ -31,13 +31,13 @@ bool BleElm327Device::on_receive(const std::vector<uint8_t> &bytes) {
   uint8_t expected_code = 0x40 + static_cast<uint8_t>(std::stoul(mode_, nullptr, 16));
   if (bytes[0] != expected_code) {
     ESP_LOGD(TAG, "Device '%s': response code mismatch: got 0x%02X, expected 0x%02X", 
-             this->get_name().c_str(), bytes[0], expected_code);
+             this->get_device_name().c_str(), bytes[0], expected_code);
     return false;
   }
 
   if (pid_.size() == 2) {
     if (bytes[1] != static_cast<uint8_t>(std::stoul(pid_, nullptr, 16))) {
-      ESP_LOGD(TAG, "Device '%s': PID mismatch (2-char)", this->get_name().c_str());
+      ESP_LOGD(TAG, "Device '%s': PID mismatch (2-char)", this->get_device_name().c_str());
       return false;
     }
   } else {
@@ -45,14 +45,14 @@ bool BleElm327Device::on_receive(const std::vector<uint8_t> &bytes) {
     uint8_t pid_lo = static_cast<uint8_t>(std::stoul(pid_.substr(2, 2), nullptr, 16));
     if (bytes[1] != pid_hi || bytes[2] != pid_lo) {
       ESP_LOGD(TAG, "Device '%s': PID mismatch: got 0x%02X 0x%02X, expected 0x%02X 0x%02X", 
-               this->get_name().c_str(), bytes[1], bytes[2], pid_hi, pid_lo);
+               this->get_device_name().c_str(), bytes[1], bytes[2], pid_hi, pid_lo);
       return false;
     }
   }
 
   std::vector<uint8_t> data(bytes.begin() + skip, bytes.end());
   ESP_LOGI(TAG, "Device '%s': matched response, data size=%zu, calling publish_data", 
-           this->get_name().c_str(), data.size());
+           this->get_device_name().c_str(), data.size());
   publish_data(data);
   return true;
 }
@@ -401,7 +401,7 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
   ESP_LOGI(TAG, "Broadcasting response to %zu devices", devices_.size());
   // Broadcast to all devices — each checks its own mode+PID and updates if matched
   for (auto *d : devices_) {
-    ESP_LOGD(TAG, "  Trying device: '%s' mode=%s pid=%s", d->get_name().c_str(), d->get_mode().c_str(), d->get_pid().c_str());
+    ESP_LOGD(TAG, "  Trying device: '%s' mode=%s pid=%s", d->get_device_name().c_str(), d->get_mode().c_str(), d->get_pid().c_str());
     d->on_receive(bytes);
   }
 }

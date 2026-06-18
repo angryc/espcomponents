@@ -14,7 +14,7 @@ void BleElm327Sensor::dump_config() {
 
 void BleElm327Sensor::publish_data(const std::vector<uint8_t> &data) {
   float val = this->parse_float(data);
-  ESP_LOGI(TAG, "Sensor '%s' publishing value: %.1f (raw data size: %zu)", this->get_name().c_str(), val, data.size());
+  ESP_LOGI(TAG, "Sensor '%s' publishing value: %.1f (raw data size: %zu)", this->get_device_name().c_str(), val, data.size());
   this->publish_state(val);
 }
 

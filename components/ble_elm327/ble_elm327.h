@@ -42,7 +42,7 @@ class BleElm327Device : public PollingComponent {
     void on_dequeue() { in_queue_ = false; }
 
     void set_name(const std::string &name) { name_ = name; }
-    const std::string &get_name() const { return name_; }
+    const std::string &get_device_name() const { return name_; }
 
     void set_pid(const std::string &pid) { pid_ = pid; }
     void set_mode(const std::string &mode) { mode_ = mode; }
