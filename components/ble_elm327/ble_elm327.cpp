@@ -452,10 +452,18 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
   // Debug: mode 22 with 4-char PID → skip=3 (response code + 2 PID bytes)
   constexpr size_t skip = 3;
   if (bytes.size() > skip + 11) {
-    ESP_LOGI(TAG, "KONA BMS: full[4]=0x%02X full[11]=0x%02X | data[0]=0x%02X data[1]=0x%02X data[4]=0x%02X (%d) data[11]=0x%02X (%d)", 
-             bytes[4], bytes[11], 
-             bytes[skip + 0], bytes[skip + 1],
-             bytes[skip + 4], bytes[skip + 4], 
+    ESP_LOGI(TAG, "KONA BMS: data[0]=0x%02X(%d) data[1]=0x%02X(%d) data[2]=0x%02X(%d) data[3]=0x%02X(%d) data[4]=0x%02X(%d) data[5]=0x%02X(%d) data[6]=0x%02X(%d) data[7]=0x%02X(%d) data[8]=0x%02X(%d) data[9]=0x%02X(%d) data[10]=0x%02X(%d) data[11]=0x%02X(%d)", 
+             bytes[skip + 0], bytes[skip + 0],
+             bytes[skip + 1], bytes[skip + 1],
+             bytes[skip + 2], bytes[skip + 2],
+             bytes[skip + 3], bytes[skip + 3],
+             bytes[skip + 4], bytes[skip + 4],
+             bytes[skip + 5], bytes[skip + 5],
+             bytes[skip + 6], bytes[skip + 6],
+             bytes[skip + 7], bytes[skip + 7],
+             bytes[skip + 8], bytes[skip + 8],
+             bytes[skip + 9], bytes[skip + 9],
+             bytes[skip + 10], bytes[skip + 10],
              bytes[skip + 11], bytes[skip + 11]);
   }
 
