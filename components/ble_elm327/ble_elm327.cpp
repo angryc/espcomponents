@@ -71,7 +71,7 @@ float BleElm327Device::parse_float(const std::vector<uint8_t> &data) {
     uint8_t j = data.size() > 9  ? data[9]  : 0;
     uint8_t k = data.size() > 10 ? data[10] : 0;
     uint8_t l = data.size() > 11 ? data[11] : 0;
-    uint8_t m = data.size() > 120 12 ? data[12] : 0;
+    uint8_t m = data.size() > 12 ? data[12] : 0;
     uint8_t n = data.size() >  13 ? data[13] : 0;
     uint8_t o = data.size() >  14 ? data[14] : 0;
     uint8_t p = data.size() >  15 ? data[15] : 0;

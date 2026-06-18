@@ -79,6 +79,9 @@ class BleElm327Device : public PollingComponent {
     optional<std::function<float(
     uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
     uint8_t,uint8_t,uint8_t,uint8_t)>> formula_;
 };
 
