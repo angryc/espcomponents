@@ -429,6 +429,11 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
       ESP_LOGD(TAG, "Skipping mid-response ELM327 header: %s", ln.c_str());
       continue;
     }
+    // Also skip any line starting with "7F " (ELM327 flow control) regardless of hex count
+    if (ln.size() >= 3 && ln[0] == '7' && ln[1] == 'F' && ln[2] == ' ') {
+      ESP_LOGD(TAG, "Skipping 7F flow control line: %s", ln.c_str());
+      continue;
+    }
     
     // Regular data line - extract hex
     for (char c : ln) {
