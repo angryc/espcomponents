@@ -127,18 +127,12 @@ async def register_ble_elm327_device(var, config):
         formula_ = await cg.process_lambda(
             config[CONF_FORMULA],
             [
-            (cg.uint8, "a"),
-            (cg.uint8, "b"),
-            (cg.uint8, "c"),
-            (cg.uint8, "d"),
-            (cg.uint8, "e"),
-            (cg.uint8, "f"),
-            (cg.uint8, "g"),
-            (cg.uint8, "h"),
-            (cg.uint8, "i"),
-            (cg.uint8, "j"),
-            (cg.uint8, "k"),
-            (cg.uint8, "l")],
+            (cg.uint8, "a"), (cg.uint8, "b"), (cg.uint8, "c"), (cg.uint8, "d"),
+            (cg.uint8, "e"), (cg.uint8, "f"), (cg.uint8, "g"), (cg.uint8, "h"),
+            (cg.uint8, "i"), (cg.uint8, "j"), (cg.uint8, "k"), (cg.uint8, "l"),
+            (cg.uint8, "m"), (cg.uint8, "n"), (cg.uint8, "o"), (cg.uint8, "p"),
+            (cg.uint8, "q"), (cg.uint8, "r"), (cg.uint8, "s"), (cg.uint8, "t"),
+            (cg.uint8, "u"), (cg.uint8, "v"), (cg.uint8, "w"), (cg.uint8, "x")],
             return_type=cg.float_,
         )
         cg.add(var.set_formula(formula_))

@@ -71,8 +71,20 @@ float BleElm327Device::parse_float(const std::vector<uint8_t> &data) {
     uint8_t j = data.size() > 9  ? data[9]  : 0;
     uint8_t k = data.size() > 10 ? data[10] : 0;
     uint8_t l = data.size() > 11 ? data[11] : 0;
+    uint8_t m = data.size() > 120 12 ? data[12] : 0;
+    uint8_t n = data.size() >  13 ? data[13] : 0;
+    uint8_t o = data.size() >  14 ? data[14] : 0;
+    uint8_t p = data.size() >  15 ? data[15] : 0;
+    uint8_t q = data.size() >  16 ? data[16] : 0;
+    uint8_t r = data.size() >  17 ? data[17] : 0;
+    uint8_t s = data.size() >  18 ? data[18] : 0;
+    uint8_t t = data.size() >  19 ? data[19] : 0;
+    uint8_t u = data.size() >  20 ? data[20] : 0;
+    uint8_t v = data.size() >  21 ? data[21] : 0;
+    uint8_t w = data.size() >  22 ? data[22] : 0;
+    uint8_t x = data.size() >  23 ? data[23] : 0;
     
-    return (*formula_)(a,b,c,d,e,f,g,h,i,j,k,l);
+    return (*formula_)(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x);
   }
   float val = 0;
   for (size_t i = 0; i < data.size(); i++) val = val * 256.0f + data[i];
@@ -456,20 +468,14 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
 
   // Debug: mode 22 with 4-char PID → skip=3 (response code + 2 PID bytes)
   constexpr size_t skip = 3;
-  if (bytes.size() > skip + 11) {
-    ESP_LOGI(TAG, "KONA BMS: data[0]=0x%02X(%d) data[1]=0x%02X(%d) data[2]=0x%02X(%d) data[3]=0x%02X(%d) data[4]=0x%02X(%d) data[5]=0x%02X(%d) data[6]=0x%02X(%d) data[7]=0x%02X(%d) data[8]=0x%02X(%d) data[9]=0x%02X(%d) data[10]=0x%02X(%d) data[11]=0x%02X(%d)", 
-             bytes[skip + 0], bytes[skip + 0],
-             bytes[skip + 1], bytes[skip + 1],
-             bytes[skip + 2], bytes[skip + 2],
-             bytes[skip + 3], bytes[skip + 3],
-             bytes[skip + 4], bytes[skip + 4],
-             bytes[skip + 5], bytes[skip + 5],
-             bytes[skip + 6], bytes[skip + 6],
-             bytes[skip + 7], bytes[skip + 7],
-             bytes[skip + 8], bytes[skip + 8],
-             bytes[skip + 9], bytes[skip + 9],
-             bytes[skip + 10], bytes[skip + 10],
-             bytes[skip + 11], bytes[skip + 11]);
+  if (bytes.size() > skip + 23) {
+    ESP_LOGI(TAG, "KONA BMS: data[0]=0x%02X data[1]=0x%02X data[2]=0x%02X data[3]=0x%02X data[4]=0x%02X data[5]=0x%02X data[6]=0x%02X data[7]=0x%02X data[8]=0x%02X data[9]=0x%02X data[10]=0x%02X data[11]=0x%02X data[12]=0x%02X data[13]=0x%02X data[14]=0x%02X data[15]=0x%02X data[16]=0x%02X data[17]=0x%02X data[18]=0x%02X data[19]=0x%02X data[20]=0x%02X data[21]=0x%02X data[22]=0x%02X data[23]=0x%02X", 
+             bytes[skip + 0], bytes[skip + 1], bytes[skip + 2], bytes[skip + 3],
+             bytes[skip + 4], bytes[skip + 5], bytes[skip + 6], bytes[skip + 7],
+             bytes[skip + 8], bytes[skip + 9], bytes[skip + 10], bytes[skip + 11],
+             bytes[skip + 12], bytes[skip + 13], bytes[skip + 14], bytes[skip + 15],
+             bytes[skip + 16], bytes[skip + 17], bytes[skip + 18], bytes[skip + 19],
+             bytes[skip + 20], bytes[skip + 21], bytes[skip + 22], bytes[skip + 23]);
   }
 
   ESP_LOGI(TAG, "Broadcasting response to %zu devices", devices_.size());
