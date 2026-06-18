@@ -357,43 +357,19 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
     start_idx = 1;
   }
 
-  // Skip initial ELM327 header line (e.g., "7F 22 12") before frame 0
-  // This is a 3-byte header that appears before the first frame marker
-  // Count hex chars (ignore spaces)
-  if (start_idx < lines.size()) {
-    const std::string &first = lines[start_idx];
-    size_t hex_count = 0;
-    for (char c : first) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
-    if (hex_count == 6) {
-      // Looks like 3-byte header (6 hex chars), skip it
-      ESP_LOGD(TAG, "Skipping initial ELM327 header line: %s", first.c_str());
-      start_idx++;
-    }
-  }
-  
-  // Also skip command echo line if it's the first remaining line (e.g., "220101" or "220105")
-  if (start_idx < lines.size()) {
-    const std::string &first = lines[start_idx];
-    size_t hex_count = 0;
-    for (char c : first) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
-    if (hex_count >= 4 && hex_count <= 8) {
-      // Likely command echo (4-8 hex chars = 2-4 byte command)
-      ESP_LOGD(TAG, "Skipping command echo line: %s", first.c_str());
-      start_idx++;
-    }
-  }
-  
-  // Skip any additional 6-hex-char lines (duplicate initial headers) before frame 0
+  // Skip ALL 6-hex-char lines (initial header + duplicates) before frame 0
+  // These are the ELM327 3-byte header lines like "7F 22 12"
   while (start_idx < lines.size()) {
     const std::string &ln = lines[start_idx];
-    size_t hex_count = 0;
-    for (char c : ln) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
     // Frame headers like "0:" have format "0:..." - check for this first
     if (ln.size() >= 2 && ln[1] == ':' && isxdigit(static_cast<unsigned char>(ln[0]))) {
       break; // Found frame 0, stop skipping
     }
+    // Count hex chars (ignore spaces)
+    size_t hex_count = 0;
+    for (char c : ln) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
     if (hex_count == 6) {
-      ESP_LOGD(TAG, "Skipping duplicate header line: %s", ln.c_str());
+      ESP_LOGD(TAG, "Skipping ELM327 header line: %s", ln.c_str());
       start_idx++;
     } else {
       break;
