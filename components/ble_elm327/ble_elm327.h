@@ -21,55 +21,59 @@ namespace espbt = esphome::esp32_ble_tracker;
 // Inherits PollingComponent so every device owns its own update_interval.
 
 class BleElm327Device : public PollingComponent {
- public:
-  void update() override { enqueued_ = true; }
-  float get_setup_priority() const override { return setup_priority::DATA; }
+  public:
+    void update() override { enqueued_ = true; }
+    float get_setup_priority() const override { return setup_priority::DATA; }
 
-  // Returns true and marks in_queue_ only if update() fired and device is not already queued.
-  // Prevents the same device from accumulating in tx_queue_ when update_interval < loop drain rate.
-  bool consume_enqueued() {
-    if (!enqueued_ || in_queue_) return false;
-    enqueued_ = false;
-    in_queue_ = true;
-    return true;
-  }
+    // Returns true and marks in_queue_ only if update() fired and device is not already queued.
+    // Prevents the same device from accumulating in tx_queue_ when update_interval < loop drain rate.
+    bool consume_enqueued() {
+      if (!enqueued_ || in_queue_) return false;
+      enqueued_ = false;
+      in_queue_ = true;
+      return true;
+    }
 
-  void setup() override {
-    ESP_LOGE("ble_elm327", "SETUP CALLED");
-  }
+    void setup() override {
+      ESP_LOGE("ble_elm327", "SETUP CALLED");
+    }
 
-  // Called when the device is popped from tx_queue_, allowing re-enqueue on next update().
-  void on_dequeue() { in_queue_ = false; }
+    // Called when the device is popped from tx_queue_, allowing re-enqueue on next update().
+    void on_dequeue() { in_queue_ = false; }
 
-  void set_pid(const std::string &pid) { pid_ = pid; }
-  void set_mode(const std::string &mode) { mode_ = mode; }
-  void set_formula(std::function<float(uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t)> f) { formula_ = f; }
-  void add_pre_command(const std::string &cmd) { pre_commands_.push_back(cmd + "\r"); }
-  const std::vector<std::string> &get_pre_commands() const { return pre_commands_; }
+    void set_name(const std::string &name) { name_ = name; }
+    const std::string &get_name() const { return name_; }
 
-  std::string get_command() const { return mode_ + pid_ + "\r"; }
-  std::string get_pid() const { return pid_; }
-  std::string get_mode() const { return mode_; }
+    void set_pid(const std::string &pid) { pid_ = pid; }
+    void set_mode(const std::string &mode) { mode_ = mode; }
+    void set_formula(std::function<float(uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t,uint8_t)> f) { formula_ = f; }
+    void add_pre_command(const std::string &cmd) { pre_commands_.push_back(cmd + "\r"); }
+    const std::vector<std::string> &get_pre_commands() const { return pre_commands_; }
 
-  // Called by the component with every parsed response frame.
-  // Checks mode+PID match; calls publish_data() if matched.
-  bool on_receive(const std::vector<uint8_t> &bytes);
+    std::string get_command() const { return mode_ + pid_ + "\r"; }
+    std::string get_pid() const { return pid_; }
+    std::string get_mode() const { return mode_; }
 
-  virtual void publish_data(const std::vector<uint8_t> &data) {}
-  virtual void dump_config() {}
+    // Called by the component with every parsed response frame.
+    // Checks mode+PID match; calls publish_data() if matched.
+    bool on_receive(const std::vector<uint8_t> &bytes);
 
- protected:
-  float parse_float(const std::vector<uint8_t> &data);
+    virtual void publish_data(const std::vector<uint8_t> &data) {}
+    virtual void dump_config() {}
 
-  bool enqueued_{false};
-  bool in_queue_{false};
-  std::string pid_;
-  std::string mode_{"01"};
-  std::vector<std::string> pre_commands_;
-  optional<std::function<float(
-  uint8_t,uint8_t,uint8_t,uint8_t,
-  uint8_t,uint8_t,uint8_t,uint8_t,
-  uint8_t,uint8_t,uint8_t,uint8_t)>> formula_;
+  protected:
+    float parse_float(const std::vector<uint8_t> &data);
+
+    bool enqueued_{false};
+    bool in_queue_{false};
+    std::string name_;
+    std::string pid_;
+    std::string mode_{"01"};
+    std::vector<std::string> pre_commands_;
+    optional<std::function<float(
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t,
+    uint8_t,uint8_t,uint8_t,uint8_t)>> formula_;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────

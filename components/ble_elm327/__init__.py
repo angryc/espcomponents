@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import ble_client, esp32_ble_tracker
 from esphome.const import (
-    CONF_ID, CONF_SERVICE_UUID,
+    CONF_ID, CONF_SERVICE_UUID, CONF_NAME,
 )
 from .const import (
     CONF_BLE_ELM327_ID, CONF_BLE_CLIENT_ID, CONF_RX_CHAR_UUID, CONF_TX_CHAR_UUID,
@@ -116,6 +116,7 @@ def inject_preset(config):
 async def register_ble_elm327_device(var, config):
     paren = await cg.get_variable(config[CONF_BLE_ELM327_ID])
     cg.add(paren.add_device(var))
+    cg.add(var.set_name(config[CONF_NAME]))
     cg.add(var.set_pid(config[CONF_PID]))
     cg.add(var.set_mode(config[CONF_MODE]))
 
