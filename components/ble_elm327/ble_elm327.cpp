@@ -357,8 +357,8 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
     start_idx = 1;
   }
 
-  // Skip ALL 6-hex-char lines (initial header + duplicates) before frame 0
-  // These are the ELM327 3-byte header lines like "7F 22 12"
+  // Skip ALL 6-hex-char lines (initial header + duplicates) AND short fragments before frame 0
+  // These are the ELM327 3-byte header lines like "7F 22 12" and stray fragments like "03E"
   while (start_idx < lines.size()) {
     const std::string &ln = lines[start_idx];
     // Frame headers like "0:" have format "0:..." - check for this first
@@ -368,8 +368,10 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
     // Count hex chars (ignore spaces)
     size_t hex_count = 0;
     for (char c : ln) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
-    if (hex_count == 6) {
-      ESP_LOGD(TAG, "Skipping ELM327 header line: %s", ln.c_str());
+    // Skip if it's a header (6 hex chars) OR a short fragment (<=4 hex chars)
+    // These are all pre-frame-0 garbage
+    if (hex_count == 6 || (hex_count > 0 && hex_count <= 4)) {
+      ESP_LOGD(TAG, "Skipping pre-frame line (hex_count=%zu): %s", hex_count, ln.c_str());
       start_idx++;
     } else {
       break;
