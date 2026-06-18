@@ -37,7 +37,6 @@ CONFIG_SCHEMA = cv.All(
 
 async def to_code(config):
     var = await sensor.new_sensor(config)
-    await cg.register_component(var, config)
 
     paren = await cg.get_variable(config[CONF_BLE_OBD_ID])
     cg.add(paren.register_device(var))
