@@ -346,7 +346,6 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
   // Collect all hex data from remaining lines, skipping frame headers (0:, 1:, 2:, etc.)
   // and status lines (SEARCHING, CAN ERROR, NO DATA, etc.)
   std::string hex;
-  int frame_num = -1;
   for (size_t i = start_idx; i < lines.size(); i++) {
     const std::string &ln = lines[i];
     
@@ -361,20 +360,12 @@ void BleElm327Component::process_complete_response(const std::string &full_respo
     
     // Check for frame header lines like "0:", "1:", "2:", etc.
     if (ln.size() >= 2 && ln[1] == ':' && isxdigit(static_cast<unsigned char>(ln[0]))) {
-      frame_num = ln[0] - '0';
       std::string data_part = ln.substr(2);
       
-      // For frame 0: include all data
-      // For frame 1+: skip first byte (ISO-TP sequence counter)
-      bool skip_first_byte = (frame_num > 0);
-      bool first_byte_done = !skip_first_byte;
-      
+      // ELM327 with ATH0 strips ISO-TP PCI bytes — all data after "N:" is OBD payload.
+      // Just extract all hex chars without skipping.
       for (char c : data_part) {
         if (isxdigit(static_cast<unsigned char>(c))) {
-          if (skip_first_byte && !first_byte_done) {
-            first_byte_done = true;
-            continue; // skip sequence byte
-          }
           hex += c;
         }
       }
