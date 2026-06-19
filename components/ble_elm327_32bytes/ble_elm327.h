@@ -30,6 +30,9 @@ class BleElm327Device : public PollingComponent {
 
   void on_dequeue() { in_queue_ = false; }
 
+  void set_name(const std::string &name) { name_ = name; }
+  const std::string &get_device_name() const { return name_; }
+
   void set_pid(const std::string &pid) { pid_ = pid; }
   void set_mode(const std::string &mode) { mode_ = mode; }
   void set_formula(std::function<float(
@@ -58,6 +61,7 @@ class BleElm327Device : public PollingComponent {
 
   bool enqueued_{false};
   bool in_queue_{false};
+  std::string name_;
   std::string pid_;
   std::string mode_{"01"};
   std::vector<std::string> pre_commands_;
@@ -108,6 +112,7 @@ class BleElm327Component : public Component, public ble_client::BLEClientNode {
 
   bool send_command(const std::string &cmd);
   void on_notify(const uint8_t *data, uint16_t length);
+  void process_complete_response(const std::string &full_response);
   void process_response(const std::string &response);
 
   espbt::ESPBTUUID service_uuid_;
@@ -129,6 +134,10 @@ class BleElm327Component : public Component, public ble_client::BLEClientNode {
 
   uint32_t tx_delay_ms_{50};
   uint32_t last_tx_time_{0};
+
+  // Multi-frame response reassembly
+  std::string response_buffer_;
+  bool response_in_progress_{false};
 
 };
 

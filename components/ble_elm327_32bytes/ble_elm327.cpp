@@ -177,6 +177,8 @@ void BleElm327Component::gattc_event_handler(esp_gattc_cb_event_t event, esp_gat
       while (!tx_queue_.empty()) tx_queue_.pop();
       for (auto *d : devices_) d->on_dequeue();
       current_pre_commands_.clear();
+      response_buffer_.clear();
+      response_in_progress_ = false;
       ESP_LOGW(TAG, "Disconnected from ELM327");
       break;
 
@@ -238,8 +240,24 @@ bool BleElm327Component::send_command(const std::string &cmd) {
 }
 
 void BleElm327Component::on_notify(const uint8_t *data, uint16_t length) {
-  std::string resp(reinterpret_cast<const char *>(data), length);
-  process_response(resp);
+  std::string fragment(reinterpret_cast<const char *>(data), length);
+  
+  // Accumulate response fragments
+  response_buffer_ += fragment;
+  
+  // Debug: show buffer state
+  ESP_LOGD(TAG, "on_notify: fragment='%s', buffer='%s'", fragment.c_str(), response_buffer_.c_str());
+  
+  // Process all complete responses (split by '>' prompt)
+  size_t pos;
+  while ((pos = response_buffer_.find('>')) != std::string::npos) {
+    std::string complete_response = response_buffer_.substr(0, pos + 1);  // include '>'
+    response_buffer_ = response_buffer_.substr(pos + 1);
+    
+    ESP_LOGI(TAG, "Processing complete response: '%s'", complete_response.c_str());
+    process_complete_response(complete_response);
+  }
+  // Remaining partial response stays in buffer
 }
 
 void BleElm327Component::process_response(const std::string &response) {
@@ -262,6 +280,146 @@ void BleElm327Component::process_response(const std::string &response) {
   if (bytes.empty()) return;
 
   for (auto *d : devices_) {
+    d->on_receive(bytes);
+  }
+}
+
+void BleElm327Component::process_complete_response(const std::string &full_response) {
+  // Skip empty or whitespace-only responses
+  if (full_response.empty() || full_response.find_first_not_of(" \t\r\n>") == std::string::npos) {
+    return;
+  }
+
+  ESP_LOGD(TAG, "<< FULL RESPONSE: %s", full_response.c_str());
+
+  if (elm_state_ != ElmState::READY) return;
+
+  // Split response into lines
+  std::vector<std::string> lines;
+  std::string line;
+  for (char c : full_response) {
+    if (c == '\r' || c == '\n') {
+      if (!line.empty()) {
+        lines.push_back(line);
+        line.clear();
+      }
+    } else {
+      line += c;
+    }
+  }
+  if (!line.empty()) lines.push_back(line);
+
+  if (lines.empty()) return;
+
+  // Debug: print all lines
+  for (size_t i = 0; i < lines.size(); i++) {
+    ESP_LOGD(TAG, "Line %zu: '%s'", i, lines[i].c_str());
+  }
+
+  // First line is often the command echo (e.g., "220101")
+  // Skip it if it matches the last sent command (pure hex, no spaces)
+  size_t start_idx = 0;
+  if (!lines[0].empty() && lines[0].find_first_not_of("0123456789ABCDEFabcdef") == std::string::npos) {
+    ESP_LOGD(TAG, "Skipping pure-hex command echo line 0: %s", lines[0].c_str());
+    start_idx = 1;
+  }
+
+  // Skip ALL 6-hex-char lines (initial header + duplicates) AND short fragments before frame 0
+  while (start_idx < lines.size()) {
+    const std::string &ln = lines[start_idx];
+    // Frame headers like "0:" have format "0:..." - check for this first
+    if (ln.size() >= 2 && ln[1] == ':' && isxdigit(static_cast<unsigned char>(ln[0]))) {
+      break; // Found frame 0, stop skipping
+    }
+    // Count hex chars (ignore spaces)
+    size_t hex_count = 0;
+    for (char c : ln) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
+    // Skip if it's a header (6 hex chars) OR a short fragment (<=4 hex chars)
+    if (hex_count == 6 || (hex_count > 0 && hex_count <= 4)) {
+      ESP_LOGD(TAG, "Skipping pre-frame line (hex_count=%zu): %s", hex_count, ln.c_str());
+      start_idx++;
+    } else {
+      break;
+    }
+  }
+
+  // Collect all hex data from remaining lines, skipping frame headers (0:, 1:, 2:, etc.)
+  // and status lines (SEARCHING, CAN ERROR, NO DATA, etc.)
+  std::string hex;
+  int frame_num = -1;
+  for (size_t i = start_idx; i < lines.size(); i++) {
+    const std::string &ln = lines[i];
+    
+    // Skip status lines
+    if (ln == "SEARCHING" || ln == "SEARCHING." || 
+        ln.find("ERROR") != std::string::npos ||
+        ln.find("NO DATA") != std::string::npos ||
+        ln.find("UNABLE TO CONNECT") != std::string::npos ||
+        ln == ">") {
+      continue;
+    }
+    
+    // Check for frame header lines like "0:", "1:", "2:", etc.
+    if (ln.size() >= 2 && ln[1] == ':' && isxdigit(static_cast<unsigned char>(ln[0]))) {
+      frame_num = ln[0] - '0';
+      std::string data_part = ln.substr(2);
+      
+      // For frame 0: include all data
+      // For frame 1+: skip first byte (ISO-TP sequence counter)
+      bool skip_first_byte = (frame_num > 0);
+      bool first_byte_done = !skip_first_byte;
+      
+      for (char c : data_part) {
+        if (isxdigit(static_cast<unsigned char>(c))) {
+          if (skip_first_byte && !first_byte_done) {
+            first_byte_done = true;
+            continue; // skip sequence byte
+          }
+          hex += c;
+        }
+      }
+      continue;
+    }
+    
+    // Skip lines that are just prompts or separators
+    if (ln == ">" || ln == ":" || ln.empty()) continue;
+    
+    // Skip ELM327 header lines (e.g., "7F 22 12") that appear between frames
+    size_t hex_count = 0;
+    for (char c : ln) if (isxdigit(static_cast<unsigned char>(c))) hex_count++;
+    if (hex_count == 6) {
+      ESP_LOGD(TAG, "Skipping mid-response ELM327 header: %s", ln.c_str());
+      continue;
+    }
+    // Also skip any line starting with "7F " (ELM327 flow control)
+    if (ln.size() >= 3 && ln[0] == '7' && ln[1] == 'F' && ln[2] == ' ') {
+      ESP_LOGD(TAG, "Skipping 7F flow control line: %s", ln.c_str());
+      continue;
+    }
+    
+    // Regular data line - extract hex
+    for (char c : ln) {
+      if (isxdigit(static_cast<unsigned char>(c))) hex += c;
+    }
+  }
+
+  // Must have at least 4 hex chars (1-byte response code + 1-byte PID/data)
+  if (hex.size() < 4) return;
+
+  ESP_LOGI(TAG, "PARSED HEX: %s (len=%zu)", hex.c_str(), hex.size());
+
+  // Parse consecutive 2-char groups into bytes
+  std::vector<uint8_t> bytes;
+  for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+    bytes.push_back(static_cast<uint8_t>(std::stoul(hex.substr(i, 2), nullptr, 16)));
+  }
+
+  if (bytes.empty()) return;
+
+  ESP_LOGI(TAG, "Broadcasting response to %zu devices", devices_.size());
+  // Broadcast to all devices — each checks its own mode+PID and updates if matched
+  for (auto *d : devices_) {
+    ESP_LOGD(TAG, "  Trying device: '%s' mode=%s pid=%s", d->get_device_name().c_str(), d->get_mode().c_str(), d->get_pid().c_str());
     d->on_receive(bytes);
   }
 }

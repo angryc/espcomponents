@@ -1,0 +1,106 @@
+esphome:
+  name: kona-obd
+  friendly_name: Kona-OBD
+
+esp32:
+  board: esp32-c6-devkitc-1
+  framework:
+    type: esp-idf
+
+api:
+  encryption:
+    key: "upG1diFZ0GrcZeUTaPXO1TxE7AyViuTFSyDSIXx67VA="
+
+ota:
+  - platform: esphome
+    password: "b27cd880fa01b275a29d7f1727d202af"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  min_auth_mode: WPA2
+  ap:
+    ssid: "Kona-OBD Fallback"
+    password: "Z7PGiEfrbRQs"
+
+
+# BLE-Client für Lelink-Adapter (ELM327-kompatibel)
+ble_client:
+  - mac_address: "6C:C3:74:C2:70:BA"
+    id: lelink_obd
+    auto_connect: true
+    on_connect:
+      then:
+        # ELM327 initialisieren (als BLE-Befehle)
+        - ble_client.write:
+            characteristic: 0xFFE1
+            data: [0x41, 0x54, 0x20, 0x5A, 0x0D]  # "AT Z\r" (Zurücksetzen)
+        - delay: 500ms
+        - ble_client.write:
+            characteristic: 0xFFE1
+            data: [0x41, 0x54, 0x20, 0x45, 0x30, 0x0D]  # "AT E0\r" (Echo aus)
+        - delay: 500ms
+        - ble_client.write:
+            characteristic: 0xFFE1
+            data: [0x41, 0x54, 0x20, 0x4C, 0x30, 0x0D]  # "AT L0\r" (Linefeeds aus)
+        - delay: 500ms
+        - ble_client.write:
+            characteristic: 0xFFE1
+            data: [0x41, 0x54, 0x20, 0x53, 0x48, 0x20, 0x37, 0x45, 0x30, 0x0D]  # "AT SH 7E0\r" (CAN-Bus-Adresse)
+        - delay: 500ms
+        # SOC anfordern
+        - ble_client.write:
+            characteristic: 0xFFE1
+            data: [0x32, 0x32, 0x20, 0x43, 0x30, 0x20, 0x30, 0x42, 0x0D]  # "22 C0 0B\r"
+        # Notifications aktivieren
+        - ble_client.set_notify:
+            characteristic: 0xFFE1
+            enable: true
+    on_disconnect:
+      then:
+        - delay: 5s
+        - lambda: id(lelink_obd).connect()  # Automatisch neu verbinden
+    on_notify:
+      - characteristic: 0xFFE1
+        then:
+          - lambda: |-
+              std::string response(x.begin(), x.end());
+              ESP_LOGI("ble", "Empfangen: %s", response.c_str());
+
+              // SOC auslesen (Antwort: "7E8 62 C0 0B XX\r")
+              if (response.find("62 C0 0B") != std::string::npos) {
+                size_t pos = response.find_last_of(' ');
+                std::string soc_hex = response.substr(pos - 2, 2);
+                int soc_raw = std::stoi(soc_hex, nullptr, 16);
+                float soc = soc_raw * 0.5;
+                id(soc_sensor).publish_state(soc);
+                ESP_LOGI("ble", "SOC: %.1f%%", soc);
+              }
+              // Ladezustand (Antwort: "7E8 62 C0 0C XX\r")
+              else if (response.find("62 C0 0C") != std::string::npos) {
+                size_t pos = response.find_last_of(' ');
+                std::string charge_hex = response.substr(pos - 2, 2);
+                int charge_raw = std::stoi(charge_hex, nullptr, 16);
+                bool charging = (charge_raw == 0x01);
+                id(is_charging).publish_state(charging ? 1 : 0);
+                ESP_LOGI("ble", "Lädt: %s", charging ? "JA" : "NEIN");
+              }
+
+# Sensoren
+sensor:
+  - platform: template
+    name: "Kona SOC"
+    id: soc_sensor
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+    icon: mdi:battery
+
+  - platform: template
+    name: "Kona Lädt"
+    id: is_charging
+    unit_of_measurement: ""
+    icon: mdi:power-plug
+
+
+logger:
+  level: DEBUG

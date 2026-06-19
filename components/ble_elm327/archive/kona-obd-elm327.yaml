@@ -1,0 +1,164 @@
+esphome:
+  name: kona-obd
+  friendly_name: Kona-OBD
+
+esp32:
+  board: esp32-c6-devkitc-1
+  framework:
+    type: esp-idf
+
+logger:
+  level: VERBOSE
+  logs:
+    ble_elm327: DEBUG
+
+api:
+  encryption:
+    key: "upG1diFZ0GrcZeUTaPXO1TxE7AyViuTFSyDSIXx67VA="
+
+ota:
+  - platform: esphome
+    password: "b27cd880fa01b275a29d7f1727d202af"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  min_auth_mode: WPA2
+  ap:
+    ssid: "Kona-OBD Fallback"
+    password: "Z7PGiEfrbRQs"
+
+captive_portal:
+
+external_components:
+  - source: github://eigger/espcomponents@latest
+    components: [ble_elm327]
+    refresh: always
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+globals:
+  - id: is_charging
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: ble_connected
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: last_soc
+    type: float
+    restore_value: yes
+    initial_value: "0"
+
+ble_client:
+  - mac_address: "6C:C3:74:C2:70:BA"
+    id: obd_client
+    auto_connect: true
+    on_connect:
+      then:
+        - globals.set:
+            id: ble_connected
+            value: "true"
+        - logger.log: "BLE CONNECTED"
+    on_disconnect:
+      then:
+        - logger.log: "BLE DISCONNECTED"
+        - globals.set:
+            id: ble_connected
+            value: "false"
+        - globals.set:
+            id: is_charging
+            value: "false"
+
+ble_elm327:
+  id: obd
+  ble_client_id: obd_client
+  service_uuid: "FFE0"
+  rx_char_uuid: "FFE1"
+  tx_char_uuid: "FFE1"
+  init_commands:
+    - "ATSP6"
+
+sensor:
+  # --- SOC Display (Hyundai Kona EV 2018) ---
+  # PID: 22 0105 | Header: 7E4 | Antwort: 62 01 05 XX
+  # SOC Display = XX * 0.5 (data[0] = Variable 'a')
+  # Quelle: JejuSoul/OBD-PIDs-for-HKMC-EVs
+  - platform: ble_elm327
+    name: "Kona SOC"
+    id: soc_sensor
+    pid: "0105"
+    mode: "22"
+    pre_commands:
+      - "ATSH 7E4"
+    formula: "return a * 0.5f;"
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+    icon: mdi:battery
+    device_class: battery
+    state_class: measurement
+    force_update: true
+    update_interval: 60s
+    on_value:
+      then:
+        - lambda: |-
+            id(last_soc) = x;
+
+  - platform: template
+    name: "Kona SOC (Last Known)"
+    id: soc_display
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    icon: mdi:battery
+    device_class: battery
+    state_class: measurement
+    lambda: |-
+      if (id(ble_connected)) {
+        return id(soc_sensor).state;
+      } else {
+        return id(last_soc);
+      }
+
+  # --- Ladestatus (PID 22 0101, Bit 7 von Byte 'j') ---
+  # Quelle: JejuSoul/OBD-PIDs-for-HKMC-EVs
+  # {j:7} = HV_Charging: 1 = ladend, 0 = nicht ladend
+  - platform: ble_elm327
+    name: "Kona Charging Status"
+    id: charging_sensor
+    pid: "0101"
+    mode: "22"
+    pre_commands:
+      - "ATSH 7E4"
+    formula: "return (float)((j >> 7) & 1);"
+    force_update: true
+    update_interval: 60s
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("obd", "Charging byte: 0x%02X", (int)x);
+            bool charging = ((int)x & 0x03) != 0;
+            id(is_charging) = charging;
+            id(charging_binary).publish_state(charging);
+            if (!charging) {
+              ESP_LOGI("obd", "Kein Laden - trenne BLE zum Schutz der 12V-Batterie");
+              id(obd_client).disconnect();
+            } else {
+              ESP_LOGI("obd", "Laden aktiv - SOC-Polling laeuft");
+            }
+
+binary_sensor:
+  - platform: template
+    name: "OBD Verbunden"
+    id: obd_connected_binary
+    icon: mdi:bluetooth-connect
+    lambda: "return id(ble_connected);"
+
+  - platform: template
+    name: "Kona laedt"
+    id: charging_binary
+    icon: mdi:ev-station
+    device_class: battery_charging
+    lambda: "return id(is_charging);"
